@@ -22,6 +22,13 @@ def conectar_banco():
 # Pasta onde as notas fiscais serão salvas
 PASTA_NOTAS = "C:\\notas_fiscais\\"
 PASTA_LIDO = os.path.join(PASTA_NOTAS, "LIDO")
+LOG_FILE = "C:\\notas_fiscais\\log.txt"
+
+# Função para registrar logs
+def registrar_log(mensagem):
+    with open(LOG_FILE, "a", encoding="utf-8") as log:
+        log.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {mensagem}\n")
+        print(f"📝 Registro no arquivo log.txt")
 
 # Criar a pasta LIDO se não existir
 if not os.path.exists(PASTA_LIDO):
@@ -90,12 +97,14 @@ def iniciar_monitoramento():
     observer.schedule(event_handler, PASTA_NOTAS, recursive=False)
     observer.start()
     print(f"🔍 Monitorando a pasta: {PASTA_NOTAS}")
+    registrar_log(f"Monitoramento iniciado na pasta: {PASTA_NOTAS}")
 
     try:
         while True:
             time.sleep(2)
     except KeyboardInterrupt:
         observer.stop()
+        registrar_log("Monitoramento interrompido pelo usuário.")
     observer.join()
 
 if __name__ == "__main__":

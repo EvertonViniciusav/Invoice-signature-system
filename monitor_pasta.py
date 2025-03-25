@@ -1,5 +1,6 @@
 import os
 import time
+import shutil  # Para mover arquivos
 import mysql.connector
 from dotenv import load_dotenv
 from watchdog.observers import Observer
@@ -19,7 +20,12 @@ def conectar_banco():
     )
 
 # Pasta onde as notas fiscais serão salvas
-PASTA_NOTAS = "C:\\notas_fiscais\\"  # Defina o caminho correto
+PASTA_NOTAS = "C:\\notas_fiscais\\"
+PASTA_LIDO = os.path.join(PASTA_NOTAS, "LIDO")
+
+# Criar a pasta LIDO se não existir
+if not os.path.exists(PASTA_LIDO):
+    os.makedirs(PASTA_LIDO)
 
 # Classe que monitora a pasta
 class MonitorNotas(FileSystemEventHandler):
@@ -34,35 +40,45 @@ class MonitorNotas(FileSystemEventHandler):
 
 # Função para processar o XML e salvar no banco
 def processar_xml(caminho_arquivo):
-    time.sleep(3)
+    time.sleep(3)  # Espera para garantir que o arquivo foi completamente escrito
+
     try:
         with open(caminho_arquivo, 'r', encoding='utf-8') as file:
-
-            tree = ET.parse(caminho_arquivo)
+            tree = ET.parse(file)
             root = tree.getroot()
 
-            # Extrair informações (depende do formato do XML da NF-e)
-            ns = {'ns': 'http://www.portalfiscal.inf.br/nfe'}
-            numero_nota = root.find(".//ns:infNFe/ns:ide/ns:nNF", ns).text  # Número da NF
-            chave_acesso = root.find(".//ns:protNFe/ns:infProt/ns:chNFe", ns).text  # Chave de acesso
-            data_emissao = root.find(".//ns:infNFe/ns:ide/ns:dhEmi", ns).text[:10]  # Data de emissão
-            empresa_id = 1  # Definir a empresa correta (depois podemos melhorar isso)
+        # Extrair informações do XML
+        ns = {'ns': 'http://www.portalfiscal.inf.br/nfe'}
+        numero_nota = root.find(".//ns:infNFe/ns:ide/ns:nNF", ns).text  # Número da NF
+        chave_acesso = root.find(".//ns:protNFe/ns:infProt/ns:chNFe", ns).text  # Chave de acesso
+        data_emissao = root.find(".//ns:infNFe/ns:ide/ns:dhEmi", ns).text[:10]  # Data de emissão
+        empresa_id = 1  # Definir a empresa correta
 
-            # Salvar no banco
-            conn = conectar_banco()
-            cursor = conn.cursor()
+        # Salvar no banco
+        conn = conectar_banco()
+        cursor = conn.cursor()
+        sql = """
+        INSERT INTO notas_fiscais (empresa_id, numero_nota, chave_acesso, data_emissao, caminho_arquivo)
+        VALUES (%s, %s, %s, %s, %s)
+        """
+        valores = (empresa_id, numero_nota, chave_acesso, data_emissao, caminho_arquivo)
+        cursor.execute(sql, valores)
+        conn.commit()
+        cursor.close()
+        conn.close()
 
-            sql = """
-            INSERT INTO notas_fiscais (empresa_id, numero_nota, chave_acesso, data_emissao, caminho_arquivo)
-            VALUES (%s, %s, %s, %s, %s)
-            """
-            valores = (empresa_id, numero_nota, chave_acesso, data_emissao, caminho_arquivo)
-            cursor.execute(sql, valores)
-            conn.commit()
-            cursor.close()
-            conn.close()
+        print(f"✅ Nota Fiscal {numero_nota} salva no banco com sucesso!")
 
-            print(f"✅ Nota Fiscal {numero_nota} salva no banco com sucesso!")
+        # Criar a pasta "LIDO" caso não exista
+        pasta_lido = os.path.join(PASTA_NOTAS, "LIDO")
+        os.makedirs(pasta_lido, exist_ok=True)
+
+        # Mover o arquivo para a pasta "LIDO"
+        destino = os.path.join(pasta_lido, os.path.basename(caminho_arquivo))
+        time.sleep(2)  # Pequena pausa antes de mover para evitar erro de acesso
+        shutil.move(caminho_arquivo, destino)
+
+        print(f"📂 Arquivo movido para {destino}")
 
     except Exception as e:
         print(f"❌ Erro ao processar XML: {e}")

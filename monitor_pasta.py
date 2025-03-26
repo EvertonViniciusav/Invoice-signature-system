@@ -58,6 +58,7 @@ def processar_xml(caminho_arquivo):
         # Extrair informações do XML
         ns = {'ns': 'http://www.portalfiscal.inf.br/nfe'}
         numero_nota = root.find(".//ns:infNFe/ns:ide/ns:nNF", ns).text  # Número da NF
+        nome_destinatario = root.find(".//ns:infNFe/ns:dest/ns:xNome", ns).text  # Nome do destinatário
         chave_acesso = root.find(".//ns:protNFe/ns:infProt/ns:chNFe", ns).text  # Chave de acesso
         data_emissao = root.find(".//ns:infNFe/ns:ide/ns:dhEmi", ns).text[:10]  # Data de emissão
         empresa_id = 1  # Definir a empresa correta
@@ -66,10 +67,10 @@ def processar_xml(caminho_arquivo):
         conn = conectar_banco()
         cursor = conn.cursor()
         sql = """
-        INSERT INTO notas_fiscais (empresa_id, numero_nota, chave_acesso, data_emissao, caminho_arquivo)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO notas_fiscais (empresa_id, numero_nota, nome_destinatario, chave_acesso, data_emissao, caminho_arquivo)
+        VALUES (%s, %s, %s, %s, %s, %s)
         """
-        valores = (empresa_id, numero_nota, chave_acesso, data_emissao, caminho_arquivo)
+        valores = (empresa_id, numero_nota, nome_destinatario, chave_acesso, data_emissao, caminho_arquivo)
         cursor.execute(sql, valores)
         conn.commit()
         cursor.close()

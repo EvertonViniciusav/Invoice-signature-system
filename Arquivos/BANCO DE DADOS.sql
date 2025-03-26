@@ -15,6 +15,7 @@ CREATE TABLE notas_fiscais (
     id INT AUTO_INCREMENT PRIMARY KEY,
     empresa_id INT NOT NULL,
     numero_nota VARCHAR(50) NOT NULL,
+    nome_destinatario VARCHAR(255) NOT NULL,
     chave_acesso VARCHAR(44) UNIQUE NOT NULL,
     data_emissao DATE NOT NULL,
     status ENUM('pendente', 'assinado') DEFAULT 'pendente',

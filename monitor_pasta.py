@@ -42,13 +42,14 @@ class MonitorNotas(FileSystemEventHandler):
 
         arquivo = event.src_path
         if arquivo.lower().endswith(".xml"):
-            print(f"📄 Novo arquivo XML detectado: {arquivo}")
+            mensagem = f"📄 Novo arquivo XML detectado: {arquivo}"
+            print(mensagem)
+            registrar_log(mensagem)
             processar_xml(arquivo)
 
 # Função para processar o XML e salvar no banco
 def processar_xml(caminho_arquivo):
     time.sleep(3)  # Espera para garantir que o arquivo foi completamente escrito
-
     try:
         with open(caminho_arquivo, 'r', encoding='utf-8') as file:
             tree = ET.parse(file)
@@ -74,7 +75,9 @@ def processar_xml(caminho_arquivo):
         cursor.close()
         conn.close()
 
-        print(f"✅ Nota Fiscal {numero_nota} salva no banco com sucesso!")
+        mensagem = f"✅ Nota Fiscal {numero_nota} salva no banco com sucesso!"
+        print(mensagem)
+        registrar_log(mensagem)
 
         # Criar a pasta "LIDO" caso não exista
         pasta_lido = os.path.join(PASTA_NOTAS, "LIDO")
@@ -85,10 +88,14 @@ def processar_xml(caminho_arquivo):
         time.sleep(2)  # Pequena pausa antes de mover para evitar erro de acesso
         shutil.move(caminho_arquivo, destino)
 
-        print(f"📂 Arquivo movido para {destino}")
+        mensagem = f"📂 Arquivo movido para {destino}"
+        print(mensagem)
+        registrar_log(mensagem)
 
     except Exception as e:
-        print(f"❌ Erro ao processar XML: {e}")
+        mensagem = f"❌ Erro ao processar XML {caminho_arquivo}: {e}"
+        print(mensagem)
+        registrar_log(mensagem)
 
 # Iniciar o monitoramento da pasta
 def iniciar_monitoramento():
@@ -97,14 +104,14 @@ def iniciar_monitoramento():
     observer.schedule(event_handler, PASTA_NOTAS, recursive=False)
     observer.start()
     print(f"🔍 Monitorando a pasta: {PASTA_NOTAS}")
-    registrar_log(f"Monitoramento iniciado na pasta: {PASTA_NOTAS}")
+    registrar_log(f"🔍 Monitoramento iniciado na pasta: {PASTA_NOTAS}")
 
     try:
         while True:
             time.sleep(2)
     except KeyboardInterrupt:
         observer.stop()
-        registrar_log("Monitoramento interrompido pelo usuário.")
+        registrar_log("🛑 Monitoramento interrompido pelo usuário.")
     observer.join()
 
 if __name__ == "__main__":

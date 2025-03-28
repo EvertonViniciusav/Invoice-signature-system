@@ -161,6 +161,41 @@ def listar_notas():
     except Exception as e:
         return jsonify({"erro": f"Erro ao buscar notas fiscais: {str(e)}"}), 500
 
+# Rota para atualizar o status de uma nota fiscal
+@app.route("/notas/atualizar", methods=["PUT"])
+@autenticar_token
+def atualizar_status_nota():
+    dados = request.json
+    nota_id = dados.get("nota_id")
+    novo_status = dados.get("status")
+
+    # Verificar se o status é válido
+    if novo_status not in ["pendente", "assinada"]:
+        return jsonify({"erro": "Status inválido. Use 'pendente' ou 'assinada'"}), 400
+
+    try:
+        conn = conectar_banco()
+        cursor = conn.cursor(dictionary=True)
+
+        # Verificar se a nota existe
+        cursor.execute("SELECT * FROM notas_fiscais WHERE id = %s", (nota_id,))
+        nota = cursor.fetchone()
+
+        if not nota:
+            return jsonify({"erro": "Nota fiscal não encontrada"}), 404
+
+        # Atualizar o status da nota
+        sql = "UPDATE notas_fiscais SET status = %s WHERE id = %s"
+        cursor.execute(sql, (novo_status, nota_id))
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({"mensagem": "Status da nota atualizado com sucesso!"})
+    except Exception as e:
+        return jsonify({"erro": f"Erro ao atualizar status da nota: {str(e)}"}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)

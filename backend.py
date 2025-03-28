@@ -9,7 +9,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from functools import wraps
 
-
 # Carregar variáveis do ambiente
 load_dotenv()
 
@@ -30,7 +29,7 @@ def conectar_banco():
 
 # Middleware para autenticação de token JWT
 def autenticar_token(f):
-    @wraps(f)  # Preserva o nome original da função decorada
+    @wraps(f)
     def decorador(*args, **kwargs):
         token = request.headers.get("Authorization")
 
@@ -50,6 +49,15 @@ def autenticar_token(f):
 
     return decorador
 
+# Middleware para verificar permissões de admin
+def autorizar_admin(f):
+    @wraps(f)
+    def decorador(*args, **kwargs):
+        if request.usuario.get("tipo") != "admin":
+            return jsonify({"erro": "Acesso negado. Permissão insuficiente."}), 403
+        return f(*args, **kwargs)
+
+    return decorador
 
 # Rota de teste
 @app.route("/", methods=["GET"])
@@ -114,9 +122,10 @@ def login():
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
-# Rota para listar usuários (Protegida)
+# Rota para listar usuários (Apenas admin pode acessar)
 @app.route("/usuarios", methods=["GET"])
 @autenticar_token
+@autorizar_admin
 def listar_usuarios():
     try:
         conn = conectar_banco()
@@ -129,6 +138,7 @@ def listar_usuarios():
     except Exception as e:
         return jsonify({"erro": f"Erro ao buscar usuários: {str(e)}"}), 500
 
+# Rota para listar notas fiscais (Todos os usuários autenticados podem acessar)
 # Rota para listar notas fiscais
 @app.route("/notas", methods=["GET"])
 @autenticar_token
@@ -136,13 +146,21 @@ def listar_notas():
     try:
         conn = conectar_banco()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM notas_fiscais")
+
+        if request.usuario["tipo"] == "admin":
+            # Admin pode ver todas as notas
+            cursor.execute("SELECT * FROM notas_fiscais")
+        else:
+            # Motorista só pode ver notas pendentes e assinadas
+            cursor.execute("SELECT * FROM notas_fiscais WHERE status IN ('pendente')")
+
         notas = cursor.fetchall()
         cursor.close()
         conn.close()
         return jsonify(notas)
     except Exception as e:
         return jsonify({"erro": f"Erro ao buscar notas fiscais: {str(e)}"}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -41,6 +41,6 @@ CREATE TABLE usuarios (
     cpf VARCHAR(14) UNIQUE NOT NULL,
     senha VARCHAR(255) NOT NULL,
     tipo ENUM('admin', 'motorista') NOT NULL,
+    status ENUM('ativo', 'inativo') DEFAULT 'ativo',
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-

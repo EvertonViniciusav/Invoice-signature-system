@@ -102,13 +102,16 @@ def login():
     try:
         conn = conectar_banco()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT id, nome, senha, tipo FROM usuarios WHERE cpf = %s", (cpf,))
+        cursor.execute("SELECT id, nome, senha, tipo, status FROM usuarios WHERE cpf = %s", (cpf,))
         usuario = cursor.fetchone()
         cursor.close()
         conn.close()
 
         if not usuario or not check_password_hash(usuario["senha"], senha):
             return jsonify({"erro": "CPF ou senha inválidos."}), 401
+
+        if usuario["status"] == "inativo":
+            return jsonify({"erro": "Usuário inativo. Contate o administrador."}), 403
 
         payload = {
             "id": usuario["id"],
@@ -130,16 +133,45 @@ def listar_usuarios():
     try:
         conn = conectar_banco()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT id, nome, cpf, tipo FROM usuarios")
+        cursor.execute("SELECT id, nome, cpf, tipo, status FROM usuarios")
         usuarios = cursor.fetchall()
         cursor.close()
         conn.close()
         return jsonify(usuarios)
     except Exception as e:
         return jsonify({"erro": f"Erro ao buscar usuários: {str(e)}"}), 500
+    
+@app.route("/usuarios/status", methods=["PUT"])
+@autenticar_token
+def atualizar_status_usuario():
+    if request.usuario["tipo"] != "admin":
+        return jsonify({"erro": "Acesso negado!"}), 403
+
+    dados = request.json
+    cpf = dados.get("cpf")
+    novo_status = dados.get("status")
+
+    if not cpf or novo_status not in ["ativo", "inativo"]:
+        return jsonify({"erro": "CPF e status são obrigatórios!"}), 400
+
+    try:
+        conn = conectar_banco()
+        cursor = conn.cursor()
+        sql = "UPDATE usuarios SET status = %s WHERE cpf = %s"
+        cursor.execute(sql, (novo_status, cpf))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            return jsonify({"erro": "Usuário não encontrado!"}), 404
+
+        cursor.close()
+        conn.close()
+        return jsonify({"mensagem": f"Status do usuário {cpf} atualizado para {novo_status}!"})
+    except Exception as e:
+        return jsonify({"erro": f"Erro ao atualizar status: {str(e)}"}), 500
+
 
 # Rota para listar notas fiscais (Todos os usuários autenticados podem acessar)
-# Rota para listar notas fiscais
 @app.route("/notas", methods=["GET"])
 @autenticar_token
 def listar_notas():
@@ -151,7 +183,7 @@ def listar_notas():
             # Admin pode ver todas as notas
             cursor.execute("SELECT * FROM notas_fiscais")
         else:
-            # Motorista só pode ver notas pendentes e assinadas
+            # Motorista só pode ver notas pendentes
             cursor.execute("SELECT * FROM notas_fiscais WHERE status IN ('pendente')")
 
         notas = cursor.fetchall()

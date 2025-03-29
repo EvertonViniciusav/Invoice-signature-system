@@ -2,7 +2,7 @@ import os
 import jwt
 import datetime
 import mysql.connector
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -62,7 +62,7 @@ def autorizar_admin(f):
 # Rota de teste
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"mensagem": "API rodando!"})
+    return render_template('login.html')
 
 # Rota para cadastro de usuários
 @app.route("/cadastro", methods=["POST"])
@@ -90,11 +90,11 @@ def cadastrar_usuario():
         return jsonify({"erro": f"Erro ao cadastrar usuário: {str(e)}"}), 500
 
 # Rota para login
-@app.route("/login", methods=["POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    dados = request.json
-    cpf = dados.get("cpf")
-    senha = dados.get("senha")
+
+    cpf = request.form.get("cpf")
+    senha = request.form.get("senha")
 
     if not cpf or not senha:
         return jsonify({"erro": "CPF e senha são obrigatórios"}), 400

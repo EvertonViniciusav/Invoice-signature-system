@@ -2,7 +2,7 @@ import os
 import jwt
 import datetime
 import mysql.connector
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -119,7 +119,10 @@ def login():
             "tipo": usuario["tipo"],
             "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=2)
         }
+
         token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+        return render_template("painel.html")
 
         return jsonify({"token": token})
     except Exception as e:
@@ -227,6 +230,39 @@ def atualizar_status_nota():
         return jsonify({"mensagem": "Status da nota atualizado com sucesso!"})
     except Exception as e:
         return jsonify({"erro": f"Erro ao atualizar status da nota: {str(e)}"}), 500
+
+@app.route("/dados_dashboard", methods=["GET"])
+def dados_dashboard():
+    try:
+        conn = conectar_banco()
+        cursor = conn.cursor(dictionary=True)
+
+        # Consulta para cada informação
+        cursor.execute("SELECT COUNT(*) AS total FROM notas_fiscais WHERE status = 'pendente'")
+        notas_assinar = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) AS total FROM notas_fiscais WHERE status = 'assinado'")
+        notas_assinadas = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) AS total FROM notas_fiscais WHERE DATE(data_emissao) = CURDATE()")
+        total_dia = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) AS total FROM notas_fiscais")
+        total_geral = cursor.fetchone()["total"]
+
+        cursor.close()
+        conn.close()
+
+        # Retorna os dados em JSON
+        return jsonify({
+            "notas_assinar": notas_assinar,
+            "notas_assinadas": notas_assinadas,
+            "total_dia": total_dia,
+            "total_geral": total_geral
+        })
+
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
 
 
 if __name__ == "__main__":
